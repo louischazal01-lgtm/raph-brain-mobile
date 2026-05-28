@@ -198,11 +198,11 @@
 
     .btn-remove {
       background: none; border: none; cursor: pointer;
-      color: #3A3A3C; padding: 6px; border-radius: 6px;
+      color: #3A3A3C !important; padding: 6px; border-radius: 6px;
       display: flex; align-items: center; justify-content: center;
       transition: color .15s;
     }
-    .btn-remove:hover, .btn-remove:active { color: #D62828; }
+    .btn-remove:hover, .btn-remove:active { color: #D62828 !important; }
 
     /* ── Empty / Error ── */
     .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 24px; gap: 10px; }
@@ -636,11 +636,17 @@ function filterLib(btn, f) {
 }
 
 function libPreview(item) {
-  const raw = item.hook || item.body || '';
+  const raw = (item.hook || item.body || '').trim();
+  const topic = (item.topic || '').trim();
   if (!raw) return '';
-  const lines = raw.split('\n').filter(l => l.trim());
-  const body = lines.length > 1 ? lines.slice(1).join(' ') : lines[0] || '';
-  return body.length > 100 ? body.slice(0, 100) + '…' : body;
+  // If multi-line: show everything after the first line
+  if (raw.includes('\n')) {
+    const after = raw.split('\n').slice(1).join(' ').trim();
+    if (after) return after.length > 100 ? after.slice(0, 100) + '…' : after;
+  }
+  // Single-line: show first 60 chars only if it differs from topic
+  const preview = raw.length > 60 ? raw.slice(0, 60) + '…' : raw;
+  return preview === topic ? '' : preview;
 }
 
 function renderLib() {
@@ -687,17 +693,9 @@ function renderLib() {
 }
 
 async function softDelete(id, btn) {
-  if (!id) return;
-  try {
-    await req('PATCH', `/linkedin/${id}`, { status: 'deleted' });
-    // Remove the card from DOM
-    btn.closest('.lib-item').remove();
-    // Also remove from libData array
-    libData = libData.filter(d => d.id !== id);
-    toast('Post supprimé');
-  } catch (e) {
-    toast('Erreur : ' + e.message);
-  }
+  btn.closest('.lib-item').remove();
+  libData = libData.filter(d => d.id !== id);
+  toast('Supprimé');
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
