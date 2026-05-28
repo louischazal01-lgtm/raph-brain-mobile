@@ -173,7 +173,7 @@
     .copy-all-row { display: flex; justify-content: flex-end; }
 
     /* ── Library ── */
-    .chips { display: flex; gap: 8px; padding: 4px 16px 12px; overflow-x: auto; scrollbar-width: none; }
+    .chips { display: flex; gap: 8px; padding: 8px 16px 12px; overflow-x: auto; overflow-y: visible; scrollbar-width: none; }
     .chips::-webkit-scrollbar { display: none; }
     .chip {
       background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px;
@@ -195,6 +195,14 @@
     .lib-date { font-size: 11px; color: #636366; margin-bottom: 6px; }
     .lib-preview { font-size: 13px; font-weight: 400; line-height: 1.45; color: #8E8E93; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
     .lib-footer { display: flex; justify-content: flex-end; align-items: center; margin-top: 12px; gap: 8px; }
+
+    .btn-remove {
+      background: none; border: none; cursor: pointer;
+      color: #3A3A3C; padding: 6px; border-radius: 6px;
+      display: flex; align-items: center; justify-content: center;
+      transition: color .15s;
+    }
+    .btn-remove:hover, .btn-remove:active { color: #D62828; }
 
     /* ── Empty / Error ── */
     .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 24px; gap: 10px; }
@@ -668,9 +676,28 @@ function renderLib() {
       ${preview ? `<div class="lib-preview">${esc(preview)}</div>` : ''}
       <div class="lib-footer">
         <button class="btn-copy" onclick="copyStr(${JSON.stringify(full)}, this)">Copier</button>
+        <button class="btn-remove" onclick="softDelete(${item.id}, this)">
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+            <polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/>
+          </svg>
+        </button>
       </div>`;
     listEl.appendChild(div);
   });
+}
+
+async function softDelete(id, btn) {
+  if (!id) return;
+  try {
+    await req('PATCH', `/linkedin/${id}`, { status: 'deleted' });
+    // Remove the card from DOM
+    btn.closest('.lib-item').remove();
+    // Also remove from libData array
+    libData = libData.filter(d => d.id !== id);
+    toast('Post supprimé');
+  } catch (e) {
+    toast('Erreur : ' + e.message);
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
