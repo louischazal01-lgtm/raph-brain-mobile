@@ -193,7 +193,6 @@
     .badge-published  { background: rgba(48,209,88,.18);  color: var(--green); }
     .badge-scheduled  { background: rgba(10,132,255,.18); color: #0A84FF; }
     .lib-date { font-size: 11px; color: #636366; margin-bottom: 6px; }
-    .lib-preview { font-size: 13px; font-weight: 400; line-height: 1.45; color: #8E8E93; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
     .lib-footer { display: flex; justify-content: flex-end; align-items: center; margin-top: 12px; gap: 8px; }
 
     .btn-remove {
@@ -255,6 +254,45 @@
       flex-shrink: 0;
     }
     .tab.on .tab-dot { background: var(--accent); }
+
+    /* ── Post Modal ── */
+    .modal-overlay {
+      position: fixed; inset: 0; z-index: 300;
+      background: rgba(0,0,0,0.6);
+      backdrop-filter: blur(4px); -webkit-backdrop-filter: blur(4px);
+      display: flex; align-items: flex-end;
+      opacity: 0; pointer-events: none;
+      transition: opacity .25s;
+    }
+    .modal-overlay.open { opacity: 1; pointer-events: all; }
+
+    .modal-sheet {
+      width: 100%; background: #1C1C1E;
+      border-radius: 20px 20px 0 0;
+      max-height: 88dvh; display: flex; flex-direction: column;
+      transform: translateY(100%);
+      transition: transform .3s cubic-bezier(.32,0,.67,0);
+      padding-bottom: env(safe-area-inset-bottom, 24px);
+    }
+    .modal-overlay.open .modal-sheet {
+      transform: translateY(0);
+      transition-timing-function: cubic-bezier(.33,1,.68,1);
+    }
+
+    .modal-hd {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: 20px 20px 12px; flex-shrink: 0;
+      border-bottom: .5px solid #38383A;
+    }
+    .modal-title { font-size: 16px; font-weight: 600; flex: 1; margin-right: 12px; }
+    .modal-close {
+      background: #2C2C2E; border: none; border-radius: 50%;
+      width: 30px; height: 30px; display: flex; align-items: center; justify-content: center;
+      cursor: pointer; color: #8E8E93; flex-shrink: 0;
+    }
+    .modal-body { flex: 1; overflow-y: auto; -webkit-overflow-scrolling: touch; padding: 20px; }
+    .modal-text { font-size: 15px; line-height: 1.6; white-space: pre-wrap; word-break: break-word; }
+    .modal-footer { padding: 12px 20px; flex-shrink: 0; }
 
     /* ── Toast ── */
     #toast {
@@ -408,6 +446,24 @@
       <div class="tab-dot"></div>
     </button>
   </nav>
+
+  <!-- Post modal -->
+  <div id="post-modal" class="modal-overlay" onclick="handleModalTap(event)">
+    <div class="modal-sheet" id="modal-sheet">
+      <div class="modal-hd">
+        <span class="modal-title" id="modal-title"></span>
+        <button class="modal-close" onclick="closeModal()">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round"><line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/></svg>
+        </button>
+      </div>
+      <div class="modal-body">
+        <div id="modal-content" class="modal-text"></div>
+      </div>
+      <div class="modal-footer">
+        <button class="btn-main" onclick="copyEl('modal-content', this)">Copier</button>
+      </div>
+    </div>
+  </div>
 
   <div id="toast"></div>
 </div>
@@ -635,20 +691,6 @@ function filterLib(btn, f) {
   renderLib();
 }
 
-function libPreview(item) {
-  const raw = (item.hook || item.body || '').trim();
-  const topic = (item.topic || '').trim();
-  if (!raw) return '';
-  // If multi-line: show everything after the first line
-  if (raw.includes('\n')) {
-    const after = raw.split('\n').slice(1).join(' ').trim();
-    if (after) return after.length > 100 ? after.slice(0, 100) + '…' : after;
-  }
-  // Single-line: show first 60 chars only if it differs from topic
-  const preview = raw.length > 60 ? raw.slice(0, 60) + '…' : raw;
-  return preview === topic ? '' : preview;
-}
-
 function renderLib() {
   const listEl = document.getElementById('lib-list');
   const items  = libFilter === 'all' ? libData : libData.filter(d => d.status === libFilter);
@@ -668,18 +710,21 @@ function renderLib() {
     const status = item.status || 'draft';
     const badge  = { draft: ['Brouillon','badge-draft'], published: ['Publié','badge-published'], scheduled: ['Planifié','badge-scheduled'] }[status] || ['—','badge-draft'];
     const date   = item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' }) : '';
-    const preview = libPreview(item);
-    const full    = [item.hook, item.body, item.cta].filter(Boolean).join('\n\n') || item.hook || item.body || '';
+    const full    = [item.hook, item.body, item.cta].filter(Boolean).join('\n\n') || item.topic || '';
 
     const div = document.createElement('div');
     div.className = 'lib-item';
+    div.style.cursor = 'pointer';
+    div.addEventListener('click', e => {
+      if (e.target.closest('button')) return;
+      openModal(item.topic || 'Post', full);
+    });
     div.innerHTML = `
       <div class="lib-item-top">
         <div class="lib-topic">${esc(item.topic || 'Post sans titre')}</div>
         <span class="badge ${badge[1]}">${badge[0]}</span>
       </div>
       ${date ? `<div class="lib-date">${date}</div>` : ''}
-      ${preview ? `<div class="lib-preview">${esc(preview)}</div>` : ''}
       <div class="lib-footer">
         <button class="btn-copy" data-content="${esc(full)}" onclick="copyFromData(this)">Copier</button>
         <button class="btn-remove" onclick="softDelete(${item.id}, this)">
@@ -704,6 +749,35 @@ function esc(s) {
 }
 function copyFromData(btn) {
   copyStr(btn.getAttribute('data-content'), btn);
+}
+
+// ── Modal ─────────────────────────────────────────────────────────────────
+function openModal(topic, content) {
+  document.getElementById('modal-title').textContent = topic;
+  document.getElementById('modal-content').textContent = content;
+  const overlay = document.getElementById('post-modal');
+  overlay.classList.add('open');
+  document.body.style.overflow = 'hidden';
+  // Swipe-to-close
+  attachSwipeClose(document.getElementById('modal-sheet'));
+}
+
+function closeModal() {
+  document.getElementById('post-modal').classList.remove('open');
+  document.body.style.overflow = '';
+}
+
+function handleModalTap(e) {
+  // Close if tapping the backdrop (not the sheet itself)
+  if (e.target === document.getElementById('post-modal')) closeModal();
+}
+
+function attachSwipeClose(el) {
+  let startY = 0;
+  el.addEventListener('touchstart', e => { startY = e.touches[0].clientY; }, { passive: true, once: true });
+  el.addEventListener('touchend', e => {
+    if (e.changedTouches[0].clientY - startY > 80) closeModal();
+  }, { passive: true, once: true });
 }
 
 // ── Segmented control ─────────────────────────────────────────────────────
