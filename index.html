@@ -196,17 +196,6 @@
     .lib-preview { font-size: 13px; font-weight: 400; line-height: 1.45; color: #8E8E93; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; max-width: 100%; }
     .lib-footer { display: flex; justify-content: flex-end; align-items: center; margin-top: 12px; gap: 8px; }
 
-    /* Delete/remove button in library */
-    .btn-remove {
-      background: none; border: none; padding: 4px 6px;
-      color: #3A3A3C; font-size: 16px; line-height: 1;
-      cursor: pointer; border-radius: 6px;
-      transition: color .15s;
-      display: flex; align-items: center; justify-content: center;
-    }
-    .btn-remove:hover, .btn-remove:active { color: #D62828; }
-    .btn-remove svg { width: 16px; height: 16px; fill: none; stroke: currentColor; stroke-width: 2; stroke-linecap: round; }
-
     /* ── Empty / Error ── */
     .empty { display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 52px 24px; gap: 10px; }
     .empty-icon { font-size: 44px; opacity: .45; }
@@ -495,6 +484,10 @@ function fallbackCopy(str, cb) {
 // ── Extract post text ─────────────────────────────────────────────────────
 function postText(d) {
   if (typeof d === 'string') return d;
+  if (d.generated) {
+    const g = d.generated;
+    return [g.hook, g.body].filter(Boolean).join('\n\n');
+  }
   const parts = [d.hook, d.body, d.cta].filter(Boolean);
   if (parts.length) return parts.join('\n\n');
   return d.content || d.text || d.message || JSON.stringify(d, null, 2);
@@ -674,28 +667,10 @@ function renderLib() {
       ${date ? `<div class="lib-date">${date}</div>` : ''}
       ${preview ? `<div class="lib-preview">${esc(preview)}</div>` : ''}
       <div class="lib-footer">
-        <button class="btn-remove" onclick="removeLib(${JSON.stringify(item.id)}, this)" aria-label="Supprimer">
-          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
-        </button>
         <button class="btn-copy" onclick="copyStr(${JSON.stringify(full)}, this)">Copier</button>
       </div>`;
     listEl.appendChild(div);
   });
-}
-
-async function removeLib(id, btn) {
-  if (!id) return;
-  if (!confirm('Supprimer ce post ?')) return;
-  btn.disabled = true;
-  try {
-    await req('DELETE', '/linkedin/' + id);
-    libData = libData.filter(d => d.id !== id);
-    renderLib();
-    toast('Post supprimé');
-  } catch (e) {
-    toast('Erreur : ' + (e.message || 'suppression échouée'));
-    btn.disabled = false;
-  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
