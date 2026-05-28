@@ -1,4 +1,4 @@
-const CACHE = 'raph-brain-v1';
+const CACHE = 'raph-brain-v2';
 const SHELL = ['./index.html', './manifest.json'];
 
 self.addEventListener('install', e => {
@@ -16,10 +16,10 @@ self.addEventListener('activate', e => {
 });
 
 self.addEventListener('fetch', e => {
-  if (e.request.url.includes('raphbrain.duckdns.org')) {
-    e.respondWith(fetch(e.request));
-    return;
-  }
+  // Never intercept API calls — let the browser handle them directly
+  if (e.request.url.includes('raphbrain.duckdns.org')) return;
+
+  // Cache-first for static shell assets only
   e.respondWith(
     caches.match(e.request).then(hit => hit || fetch(e.request))
   );
