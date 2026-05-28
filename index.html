@@ -173,7 +173,7 @@
     .copy-all-row { display: flex; justify-content: flex-end; }
 
     /* ── Library ── */
-    .chips { display: flex; gap: 8px; padding: 0 16px 12px; overflow-x: auto; scrollbar-width: none; }
+    .chips { display: flex; gap: 8px; padding: 4px 16px 12px; overflow-x: auto; scrollbar-width: none; }
     .chips::-webkit-scrollbar { display: none; }
     .chip {
       background: var(--surface); border: 1.5px solid var(--border); border-radius: 20px;
@@ -199,7 +199,7 @@
     /* Delete/remove button in library */
     .btn-remove {
       background: none; border: none; padding: 4px 6px;
-      color: #8E8E93; font-size: 16px; line-height: 1;
+      color: #3A3A3C; font-size: 16px; line-height: 1;
       cursor: pointer; border-radius: 6px;
       transition: color .15s;
       display: flex; align-items: center; justify-content: center;
@@ -634,6 +634,14 @@ function filterLib(btn, f) {
   renderLib();
 }
 
+function libPreview(item) {
+  const raw = item.hook || item.body || '';
+  if (!raw) return '';
+  const lines = raw.split('\n').filter(l => l.trim());
+  const body = lines.length > 1 ? lines.slice(1).join(' ') : lines[0] || '';
+  return body.length > 100 ? body.slice(0, 100) + '…' : body;
+}
+
 function renderLib() {
   const listEl = document.getElementById('lib-list');
   const items  = libFilter === 'all' ? libData : libData.filter(d => d.status === libFilter);
@@ -653,8 +661,8 @@ function renderLib() {
     const status = item.status || 'draft';
     const badge  = { draft: ['Brouillon','badge-draft'], published: ['Publié','badge-published'], scheduled: ['Planifié','badge-scheduled'] }[status] || ['—','badge-draft'];
     const date   = item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' }) : '';
-    const preview = item.hook || item.body || '';
-    const full    = [item.hook, item.body, item.cta].filter(Boolean).join('\n\n') || preview;
+    const preview = libPreview(item);
+    const full    = [item.hook, item.body, item.cta].filter(Boolean).join('\n\n') || item.hook || item.body || '';
 
     const div = document.createElement('div');
     div.className = 'lib-item';
@@ -666,10 +674,28 @@ function renderLib() {
       ${date ? `<div class="lib-date">${date}</div>` : ''}
       ${preview ? `<div class="lib-preview">${esc(preview)}</div>` : ''}
       <div class="lib-footer">
+        <button class="btn-remove" onclick="removeLib(${JSON.stringify(item.id)}, this)" aria-label="Supprimer">
+          <svg viewBox="0 0 24 24"><polyline points="3 6 5 6 21 6"/><path d="M19 6l-1 14H6L5 6"/><path d="M10 11v6"/><path d="M14 11v6"/><path d="M9 6V4h6v2"/></svg>
+        </button>
         <button class="btn-copy" onclick="copyStr(${JSON.stringify(full)}, this)">Copier</button>
       </div>`;
     listEl.appendChild(div);
   });
+}
+
+async function removeLib(id, btn) {
+  if (!id) return;
+  if (!confirm('Supprimer ce post ?')) return;
+  btn.disabled = true;
+  try {
+    await req('DELETE', '/linkedin/' + id);
+    libData = libData.filter(d => d.id !== id);
+    renderLib();
+    toast('Post supprimé');
+  } catch (e) {
+    toast('Erreur : ' + (e.message || 'suppression échouée'));
+    btn.disabled = false;
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
