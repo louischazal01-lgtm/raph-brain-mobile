@@ -406,6 +406,7 @@
 
     <div class="chips">
       <button class="chip on" data-f="all"       onclick="filterLib(this,'all')">Tous</button>
+      <button class="chip"    data-f="ready"      onclick="filterLib(this,'ready')">Prêts</button>
       <button class="chip"    data-f="draft"      onclick="filterLib(this,'draft')">Brouillons</button>
       <button class="chip"    data-f="published"  onclick="filterLib(this,'published')">Publiés</button>
       <button class="chip"    data-f="scheduled"  onclick="filterLib(this,'scheduled')">Planifiés</button>
@@ -708,7 +709,7 @@ function renderLib() {
   listEl.innerHTML = '';
   items.forEach(item => {
     const status = item.status || 'draft';
-    const badge  = { draft: ['Brouillon','badge-draft'], published: ['Publié','badge-published'], scheduled: ['Planifié','badge-scheduled'] }[status] || ['—','badge-draft'];
+    const badge  = { draft: ['Brouillon','badge-draft'], ready: ['Prêt','badge-scheduled'], published: ['Publié','badge-published'], scheduled: ['Planifié','badge-scheduled'] }[status] || ['—','badge-draft'];
     const date   = item.created_at ? new Date(item.created_at).toLocaleDateString('fr-FR', { day:'numeric', month:'short', year:'numeric' }) : '';
     const full    = [item.hook, item.body, item.cta].filter(Boolean).join('\n\n') || item.topic || '';
 
@@ -738,9 +739,17 @@ function renderLib() {
 }
 
 async function softDelete(id, btn) {
-  btn.closest('.lib-item').remove();
-  libData = libData.filter(d => d.id !== id);
-  toast('Supprimé');
+  const item = btn.closest('.lib-item');
+  btn.disabled = true;
+  try {
+    await req('DELETE', '/linkedin/' + id);
+    item.remove();
+    libData = libData.filter(d => d.id !== id);
+    toast('Supprimé');
+  } catch (e) {
+    btn.disabled = false;
+    toast('Erreur : ' + (e.message || 'suppression impossible'));
+  }
 }
 
 // ── Helpers ───────────────────────────────────────────────────────────────
